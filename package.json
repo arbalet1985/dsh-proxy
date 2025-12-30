@@ -3,8 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "tough-cookie": "^4.1.4",
-    "axios": "^1.7.2",
-    "axios-cookiejar-support": "^7.0.0"
+    "axios": "^1.7.2"
   }
 }
