@@ -1,7 +1,7 @@
-export default async function handler(req, res) {
+export default function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
@@ -9,26 +9,28 @@ export default async function handler(req, res) {
     return;
   }
   
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
+  if (req.method === 'GET') {
+    res.status(405).json({ error: 'Use POST method' });
     return;
   }
   
-  // Безопасный парсинг body
-  let body = {};
+  // ✅ ВЕРСИЯ ВЕРЦЕЛ: req.body = Buffer
+  let body;
   try {
-    body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    body = JSON.parse(req.body.toString());
   } catch(e) {
-    return res.status(400).json({ error: 'Invalid JSON' });
+    body = {};
   }
   
-  const { username, password, image_id } = body;
+  const { username = '', password = '', image_id = '' } = body;
   
-  // ТЕСТОВЫЙ ОТВЕТ - БЕЗ АКСИОС
   res.json({ 
     success: true,
     message: 'API РАБОТАЕТ!',
-    received: { username, password: password ? '***' : '', image_id },
-    timestamp: new Date().toISOString()
+    data: {
+      username: username || '[не указано]',
+      password: password ? '[защищено]' : '[не указано]',
+      image_id: image_id || '[не указано]'
+    }
   });
 }
