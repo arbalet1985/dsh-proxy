@@ -1,8 +1,0 @@
-{
-  "functions": {
-    "api/dsh-login.js": {
-      "runtime": "nodejs18.x",
-      "maxDuration": 15
-    }
-  }
-}
