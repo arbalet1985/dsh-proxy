@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "puppeteer-core": "^22.15.0",
-    "@sparticuz/chromium": "^131.0.2"
+    "tough-cookie": "^4.1.4",
+    "axios": "^1.7.2",
+    "axios-cookiejar-support": "^7.0.0"
   }
 }
