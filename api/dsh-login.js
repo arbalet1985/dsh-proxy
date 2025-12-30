@@ -1,44 +1,54 @@
 export default async function handler(req, res) {
-  // ✅ CORS ПЕРВЫМ ДЕЛОМ
+  console.log('🔍 RAW req.body:', req.body);
+  
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  // ✅ OPTIONS ПЕРВЫМ ДЕЛОМ
   if (req.method === 'OPTIONS') {
-    console.log('✅ OPTIONS OK');
     res.status(200).end();
     return;
   }
   
-  // ✅ НЕ-ПОСТ ПЕРВЫМ ДЕЛОМ
   if (req.method !== 'POST') {
-    console.log('❌ Method:', req.method);
     res.status(405).json({ error: 'Use POST' });
     return;
   }
   
-  // ✅ БЕЗОПАСНЫЙ PARSE ПЕРЕД ЛЮБЫМИ { username }
-  console.log('🔍 req.body:', req.body);
+  // ✅ VERCEL 2025: req.body = Buffer
+  let parsedBody = {};
   
-  let bodyData = {};
   try {
     if (req.body) {
-      const bodyString = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.body;
-      bodyData = JSON.parse(bodyString || '{}');
+      const bodyString = Buffer.isBuffer(req.body) 
+        ? req.body.toString('utf8') 
+        : String(req.body);
+      
+      console.log('🔍 Body string:', bodyString.substring(0, 100));
+      parsedBody = JSON.parse(bodyString);
+      console.log('✅ PARSED:', parsedBody);
     }
-  } catch(e) {
-    console.error('❌ Parse error:', e.message);
+  } catch (e) {
+    console.error('❌ PARSE ERROR:', e.message);
+    res.status(400).json({ error: 'Parse error', raw: String(req.body) });
+    return;
   }
   
-  // ✅ ТЕПЕРЬ безопасно деструктуризуем
-  const { username = '', password = '', image_id = '' } = bodyData;
+  // ✅ ТЕПЕРЬ username/image_id точно есть
+  const username = parsedBody.username || '';
+  const image_id = parsedBody.image_id || '';
+  const password = parsedBody.password || '';
   
-  console.log('✅ Parsed:', { username: !!username, image_id });
+  console.log('📊 EXTRACTED:', { username: !!username, image_id, hasPass: !!password });
   
   res.json({
     success: true,
     message: 'API РАБОТАЕТ!',
-    received: { username: username || 'не указано', image_id: image_id || 'не указано' }
+    received: {
+      username: username || 'не указано',
+      image_id: image_id || 'не указано',
+      has_password: !!password,
+      raw_length: req.body?.length || 0
+    }
   });
 }
