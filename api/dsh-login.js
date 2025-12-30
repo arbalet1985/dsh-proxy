@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { wrapper } from 'axios-cookiejar-support';
-import { CookieJar } from 'tough-cookie';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,58 +22,70 @@ export default async function handler(req, res) {
     return;
   }
 
-  const cookieJar = new CookieJar();
-  const client = wrapper(axios.create({ jar: cookieJar }));
-
+  const cookies = []; // Массив для cookies
+  
   try {
-    console.log('🌐 Получаем страницу логина...');
+    console.log('🌐 Загружаем логин...');
     
-    // 1. Загружаем страницу логина (получаем CSRF токены)
-    const loginPage = await client.get('https://deepskyhosting.com/index.php?do=login');
+    // 1. GET логин страницы (получаем cookies)
+    const loginPage = await axios.get('https://deepskyhosting.com/index.php?do=login', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      maxRedirects: 5
+    });
     
-    // 2. Парсим форму (ищем поля)
-    const formData = new URLSearchParams();
-    formData.append('username', username);
-    formData.append('userpass', password);
-    formData.append('user_remember', '1'); // Запомнить меня
-    formData.append('submit', 'Войти'); // Кнопка
+    // Извлекаем cookies из ответа
+    loginPage.headers['set-cookie']?.forEach(cookie => {
+      cookies.push(cookie.split(';')[0]);
+    });
     
+    // 2. POST логин
     console.log('🔐 Логин...');
+    const loginData = new URLSearchParams();
+    loginData.append('username', username);
+    loginData.append('userpass', password);
+    loginData.append('user_remember', '1');
     
-    // 3. Отправляем логин
-    const loginResponse = await client.post(
-      'https://deepskyhosting.com/index.php?do=login', 
-      formData,
+    const loginResponse = await axios.post('https://deepskyhosting.com/index.php?do=login', 
+      loginData, 
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Cookie': cookies.join('; ')
         },
         maxRedirects: 5
       }
     );
     
-    // 4. Проверяем успешный логин (редирект или статус)
-    const currentUrl = loginResponse.request.res.responseUrl || loginResponse.config.url;
-    if (currentUrl.includes('login') || currentUrl.includes('do=login')) {
+    // Обновляем cookies из ответа логина
+    loginResponse.headers['set-cookie']?.forEach(cookie => {
+      cookies.push(cookie.split(';')[0]);
+    });
+    
+    // 3. Проверяем логин (редирект не на login)
+    const finalUrl = loginResponse.request.res.responseUrl || loginResponse.config.url;
+    if (finalUrl.includes('login') || finalUrl.includes('do=login')) {
       return res.json({ success: false, error: 'Неверный логин/пароль' });
     }
     
-    console.log('👍 Логин успешен! Ставим лайк...');
+    console.log('👍 Логин OK, лайк...');
     
-    // 5. Ставим лайк с сессионными куки
-    const likeResponse = await client.get(
+    // 4. Ставим лайк
+    const likeResponse = await axios.get(
       `https://deepskyhosting.com/phpajax.php?like=1&id=${image_id}`,
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Cookie': cookies.join('; ')
         }
       }
     );
     
     const likeResult = likeResponse.data.trim();
     
-    console.log(`📊 Результат лайка: "${likeResult}"`);
+    console.log(`📊 Лайк: "${likeResult}"`);
     
     res.json({ 
       success: likeResult === 'OK',
@@ -87,7 +97,7 @@ export default async function handler(req, res) {
     console.error('❌ Ошибка:', error.message);
     res.status(500).json({ 
       success: false, 
-      error: error.response?.data || error.message 
+      error: error.response?.statusText || error.message 
     });
   }
 }
