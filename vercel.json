@@ -1,13 +1,8 @@
 {
   "functions": {
     "api/dsh-login.js": {
-      "maxDuration": 30
+      "runtime": "nodejs18.x",
+      "maxDuration": 15
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api/dsh-login",
-      "destination": "/api/dsh-login.js"
-    }
-  ]
+  }
 }
