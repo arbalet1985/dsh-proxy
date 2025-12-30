@@ -3,11 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "puppeteer-core": "22.15.0",
-    "chrome-aws-lambda": "10.1.0",
-    "@vercel/nft": "^0.27.4"
-  },
-  "scripts": {
-    "build": "nft build"
+    "puppeteer-core": "^22.15.0",
+    "@sparticuz/chromium": "^131.0.2"
   }
 }
