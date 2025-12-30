@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/dsh-login.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/dsh-login",
+      "destination": "/api/dsh-login.js"
+    }
+  ]
+}
