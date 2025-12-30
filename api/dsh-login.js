@@ -1,7 +1,6 @@
 export default function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
@@ -9,28 +8,31 @@ export default function handler(req, res) {
     return;
   }
   
-  if (req.method === 'GET') {
-    res.status(405).json({ error: 'Use POST method' });
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Use POST' });
     return;
   }
   
-  // ✅ ВЕРСИЯ ВЕРЦЕЛ: req.body = Buffer
-  let body;
+  // ✅ VERCEL FIX: правильный парсинг body
+  const body = req.body ? Buffer.from(req.body).toString() : '{}';
+  let data;
+  
   try {
-    body = JSON.parse(req.body.toString());
-  } catch(e) {
-    body = {};
+    data = JSON.parse(body);
+  } catch {
+    res.status(400).json({ error: 'Bad JSON' });
+    return;
   }
   
-  const { username = '', password = '', image_id = '' } = body;
+  const { username, password, image_id } = data;
   
-  res.json({ 
+  res.json({
     success: true,
-    message: 'API РАБОТАЕТ!',
-    data: {
-      username: username || '[не указано]',
-      password: password ? '[защищено]' : '[не указано]',
-      image_id: image_id || '[не указано]'
+    message: '✅ API РАБОТАЕТ!',
+    received: {
+      username: username || 'не указано',
+      image_id: image_id || 'не указано',
+      has_password: !!password
     }
   });
 }
