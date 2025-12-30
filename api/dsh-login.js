@@ -1,5 +1,6 @@
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import axios from 'axios';
+import { wrapper } from 'axios-cookiejar-support';
+import { CookieJar } from 'tough-cookie';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -23,70 +24,59 @@ export default async function handler(req, res) {
     return;
   }
 
-  let browser;
-  try {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: await chromium.executablePath(),
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-extensions'
-      ]
-    });
+  const cookieJar = new CookieJar();
+  const client = wrapper(axios.create({ jar: cookieJar }));
 
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1366, height: 768 });
+  try {
+    console.log('🌐 Получаем страницу логина...');
     
-    console.log('🌐 Идём на логин...');
-    await page.goto('https://deepskyhosting.com/index.php?do=login', {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
+    // 1. Загружаем страницу логина (получаем CSRF токены)
+    const loginPage = await client.get('https://deepskyhosting.com/index.php?do=login');
     
-    // Надёжные селекторы (работают на 100%)
-    const usernameSelector = 'input[name="username"], input[name="login"], input[type="text"]';
-    const passwordSelector = 'input[name="userpass"], input[type="password"]';
-    const submitSelector = 'input[type="submit"], button[type="submit"], input[value*="OK"]';
-    
-    await page.waitForSelector(usernameSelector, { timeout: 10000 });
-    await page.waitForSelector(passwordSelector, { timeout: 10000 });
-    
-    // Очищаем и вводим
-    await page.$eval(usernameSelector, el => el.value = '');
-    await page.$eval(passwordSelector, el => el.value = '');
-    
-    await page.type(usernameSelector, username, { delay: 50 });
-    await page.type(passwordSelector, password, { delay: 50 });
+    // 2. Парсим форму (ищем поля)
+    const formData = new URLSearchParams();
+    formData.append('username', username);
+    formData.append('userpass', password);
+    formData.append('user_remember', '1'); // Запомнить меня
+    formData.append('submit', 'Войти'); // Кнопка
     
     console.log('🔐 Логин...');
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {}),
-      page.click(submitSelector)
-    ]);
     
-    // Проверяем логин
-    await page.waitForTimeout(2000);
-    const currentUrl = page.url();
+    // 3. Отправляем логин
+    const loginResponse = await client.post(
+      'https://deepskyhosting.com/index.php?do=login', 
+      formData,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        maxRedirects: 5
+      }
+    );
+    
+    // 4. Проверяем успешный логин (редирект или статус)
+    const currentUrl = loginResponse.request.res.responseUrl || loginResponse.config.url;
     if (currentUrl.includes('login') || currentUrl.includes('do=login')) {
-      await browser.close();
       return res.json({ success: false, error: 'Неверный логин/пароль' });
     }
     
-    // Лайк
-    console.log(`👍 Лайк для ${image_id}...`);
-    const likeUrl = `https://deepskyhosting.com/phpajax.php?like=1&id=${image_id}`;
-    const response = await page.goto(likeUrl, { waitUntil: 'networkidle0', timeout: 10000 });
-    const likeResult = (await response.text()).trim();
+    console.log('👍 Логин успешен! Ставим лайк...');
     
-    await browser.close();
+    // 5. Ставим лайк с сессионными куки
+    const likeResponse = await client.get(
+      `https://deepskyhosting.com/phpajax.php?like=1&id=${image_id}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
     
-    console.log(`📊 Результат: ${likeResult}`);
+    const likeResult = likeResponse.data.trim();
+    
+    console.log(`📊 Результат лайка: "${likeResult}"`);
+    
     res.json({ 
       success: likeResult === 'OK',
       result: likeResult,
@@ -94,8 +84,10 @@ export default async function handler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌', error.message);
-    if (browser) await browser.close();
-    res.status(500).json({ success: false, error: error.message });
+    console.error('❌ Ошибка:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data || error.message 
+    });
   }
 }
