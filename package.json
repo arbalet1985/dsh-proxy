@@ -1,0 +1,12 @@
+{
+  "name": "dsh-proxy",
+  "version": "1.0.0",
+  "main": "api/dsh-login.js",
+  "dependencies": {
+    "puppeteer-core": "^23.0.0",
+    "chrome-aws-lambda": "^10.1.0"
+  },
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
