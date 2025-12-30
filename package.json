@@ -1,12 +1,13 @@
 {
   "name": "dsh-proxy",
   "version": "1.0.0",
-  "main": "api/dsh-login.js",
+  "type": "module",
   "dependencies": {
-    "puppeteer-core": "^23.0.0",
-    "chrome-aws-lambda": "^10.1.0"
+    "puppeteer-core": "22.15.0",
+    "chrome-aws-lambda": "10.1.0",
+    "@vercel/nft": "^0.27.4"
   },
   "scripts": {
-    "dev": "vercel dev"
+    "build": "nft build"
   }
 }
